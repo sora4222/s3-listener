@@ -1,7 +1,7 @@
 package com.listener.com.jesse;
 
 import com.listener.S3Listen;
-import com.listener.storable.SQLLiteStorable;
+import com.listener.storable.SQLiteStorable;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
@@ -39,9 +39,10 @@ public class run {
             InputStream awsPropFile = run.class.getClassLoader().getResourceAsStream("aws.properties");
             propertiesToWrite = new Properties(System.getProperties());
             propertiesToWrite.load(awsPropFile);
-        } catch (IOException e) {
+        } catch (IOException | NullPointerException e) {
             logger.debug("AWS_ACCESS_KEY_ID has not been uploaded to the system, this will" +
-                    "cause the IAM role to be loaded if it exists : " + e.getMessage());
+                    "cause the IAM role to be loaded if it exists or files from the default" +
+                    "credentials file: " + e.getMessage());
         }
         System.setProperties(propertiesToWrite);
 
@@ -50,7 +51,7 @@ public class run {
 
         S3Listen fileListener = new S3Listen(Duration.ofSeconds(20),
                 generalConfig,
-                new SQLLiteStorable(generalConfig),
+                new SQLiteStorable(generalConfig),
                 new KafkaProducer<>(kafkaProducerProperties, new StringSerializer(), new StringSerializer()));
 
         fileListener.listen();

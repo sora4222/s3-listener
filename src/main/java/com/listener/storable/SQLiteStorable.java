@@ -6,19 +6,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.sql.*;
 import java.util.Properties;
 
-public class SQLLiteStorable implements Storable {
+import static java.lang.System.exit;
 
-    private final static Logger logger = LoggerFactory.getLogger(SQLLiteStorable.class.getName());
+public class SQLiteStorable implements Storable {
+
+    private final static Logger logger = LoggerFactory.getLogger(SQLiteStorable.class.getName());
 
 
     private Connection dbConnection;
 
-    public SQLLiteStorable(Properties properties) {
+    public SQLiteStorable(Properties properties) {
         String uri = "";
         if (properties.getProperty("InMemory", "false").equals("true"))
             // Creates a memory database
@@ -26,17 +31,21 @@ public class SQLLiteStorable implements Storable {
         else
             uri = "jdbc:sqlite:" + properties.getProperty("DataBaseLocation");
         try {
+            logger.info("The uri connection string was: " + uri);
             dbConnection = DriverManager.getConnection(uri);
 
-            // Check if the table exists
-            DatabaseMetaData metaData = dbConnection.getMetaData();
-            ResultSet result = metaData.getTables(null,
-                    null,
-                    "LISTDATA",
-                    new String[]{"TABLE"});
-
+            URI resource = null;
+            try {
+                resource = this.getClass().getClassLoader().getResource("SQLiteInitialSchema").toURI();
+            } catch (NullPointerException exc) {
+                logger.error("The SQLiteInitialSchema file doesn't exist and needs to be created.");
+                exit(1);
+            }
             BufferedReader br = new BufferedReader(
-                    new FileReader("SQLiteInitialSchema"));
+                    new FileReader(
+                            new File(
+                                    resource
+                            )));
 
             StringBuilder sb = new StringBuilder();
             String line = br.readLine();
@@ -52,12 +61,14 @@ public class SQLLiteStorable implements Storable {
             dbConnection.setAutoCommit(true);
 
             // Creates the table if it doesn't exist
+            logger.info("Schema creation string is:\n" + sb.toString());
             final Statement stmt = dbConnection.createStatement();
             stmt.executeUpdate(sb.toString());
 
 
-        } catch (SQLException | IOException exc) {
+        } catch (URISyntaxException | SQLException | IOException exc) {
             // Will write the exception to log
+            logger.error("An error has occured setting up the SQLite storable:\n" + exc.getMessage());
             dbConnection = null;
         }
     }
@@ -83,6 +94,8 @@ public class SQLLiteStorable implements Storable {
         catch (SQLException exc){
             // Ensures the listener won't output everything to this database in the case
             // of a failure.
+            logger.warn("The storable has had an error reading a key\n{}\nSQLState:{}",
+                    exc.getMessage(), exc.getSQLState());
             return true;
         }
     }
@@ -102,6 +115,8 @@ public class SQLLiteStorable implements Storable {
             updateStatement.execute();
         }
         catch (SQLException exc){
+            logger.warn("An error has occured writing a key to the SQLite storable:{},\nSQLiteState:{}",
+                    exc.getMessage(), exc.getSQLState());
             return false;
         }
         return true;

@@ -80,17 +80,19 @@ public class S3Listen {
                     logger.info("All shutdown actions have been completed successfully.");
                 }
                 catch (InterruptedException exc){
-                    logger.info("An exception has occured during shutdown: \n" + exc.getMessage());
+                    logger.warn("An exception has occured during shutdown: \n" + exc.getMessage());
                 }
             }));
 
             while (runBool) {
-                logger.debug("A poll run is beginning");
+                logger.trace("A poll run is beginning");
                 // Calls list
                 Set<String> currentS3Files = callListOnBucket(bucketName);
+                logger.info("The number of files listed is: {}", currentS3Files.size());
 
                 // Compares the called list with the read list
-                Set<String> differenceBetween = queryTheDifferenceInCache(currentS3Files);
+                Set<String> differenceBetween = queryTheDifferenceFromStorable(currentS3Files);
+                logger.info("The number of files not in the storable: {}", differenceBetween.size());
 
                 // Takes any of the difference, cycles through it
                 // Sends any of the differences to the kafka topic setup.
@@ -123,8 +125,8 @@ public class S3Listen {
      * @param currentS3Files the S3 objects that is in the bucket
      * @return the S3Key files that have been read before
      */
-    private Set<String> queryTheDifferenceInCache(Set<String> currentS3Files) {
-        logger.debug("queryTheDifferenceInCache");
+    private Set<String> queryTheDifferenceFromStorable(Set<String> currentS3Files) {
+        logger.trace("queryTheDifferenceFromStorable");
         currentS3Files.removeIf(storageForS3List::keyAlreadyRead);
         return currentS3Files;
     }
