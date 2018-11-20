@@ -7,8 +7,8 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.Duration;
 import java.util.Properties;
 
@@ -20,21 +20,23 @@ import static java.lang.System.exit;
 public class run {
     private final static Logger logger = LoggerFactory.getLogger(run.class.getName());
 
-    public static Properties loadProperties(String fileName) {
-        Properties propertiesConfig = null;
+    private static Properties loadProperties(String fileName) {
+        Properties propertiesConfig = new Properties();
         try {
-            FileInputStream propFileStream = new FileInputStream(fileName);
+            InputStream propFileStream = run.class.getClassLoader().getResourceAsStream(fileName);
             propertiesConfig.load(propFileStream);
+            return propertiesConfig;
         } catch (IOException e) {
-            logger.debug(e.getMessage());
+            logger.debug("Loading property file: " + fileName + "\n" + e.getMessage());
             exit(1);
+            return null;
         }
     }
 
     public static void main(String[] args) {
         Properties propertiesToWrite = null;
         try {
-            FileInputStream awsPropFile = new FileInputStream("aws.properties");
+            InputStream awsPropFile = run.class.getClassLoader().getResourceAsStream("aws.properties");
             propertiesToWrite = new Properties(System.getProperties());
             propertiesToWrite.load(awsPropFile);
         } catch (IOException e) {
@@ -43,12 +45,14 @@ public class run {
         }
         System.setProperties(propertiesToWrite);
 
-        Properties bucketConfig = loadProperties("config.properties");
+        Properties generalConfig = loadProperties("config.properties");
         Properties kafkaProducerProperties = loadProperties("kafkaProducer.properties");
 
         S3Listen fileListener = new S3Listen(Duration.ofSeconds(20),
-                bucketConfig,
-                new SQLLiteStorable()
-        new KafkaProducer<String, String>(kafkaProducerProperties, new StringSerializer(), new StringSerializer()));
+                generalConfig,
+                new SQLLiteStorable(generalConfig),
+                new KafkaProducer<>(kafkaProducerProperties, new StringSerializer(), new StringSerializer()));
+
+        fileListener.listen();
     }
 }

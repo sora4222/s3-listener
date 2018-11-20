@@ -2,6 +2,8 @@ package com.listener.storable;
 
 
 import com.listener.Storable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -10,6 +12,9 @@ import java.sql.*;
 import java.util.Properties;
 
 public class SQLLiteStorable implements Storable {
+
+    private final static Logger logger = LoggerFactory.getLogger(SQLLiteStorable.class.getName());
+
 
     private Connection dbConnection;
 
@@ -26,7 +31,8 @@ public class SQLLiteStorable implements Storable {
             // Check if the table exists
             DatabaseMetaData metaData = dbConnection.getMetaData();
             ResultSet result = metaData.getTables(null,
-                    null, "LISTDATA",
+                    null,
+                    "LISTDATA",
                     new String[]{"TABLE"});
 
             BufferedReader br = new BufferedReader(

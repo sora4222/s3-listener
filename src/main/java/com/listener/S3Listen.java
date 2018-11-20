@@ -6,6 +6,8 @@ import com.amazonaws.services.s3.model.ListObjectsV2Result;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.HashSet;
@@ -28,7 +30,8 @@ public class S3Listen {
     private final KafkaProducer<String, String> kafkaProducer;
     private final Storable storageForS3List;
     private final String bucketName;
-    static private boolean runBool;
+    private static boolean runBool;
+    private static final Logger logger = LoggerFactory.getLogger(S3Listen.class.getName());
     /**
      *
      * @param timeBetweenPolls A duration between pings for the s3bucket
@@ -42,18 +45,18 @@ public class S3Listen {
                     Properties S3ListenProperties,
                     Storable storageForS3List,
                     KafkaProducer<String, String> kafkaProducer){
+
+
         this.timeBetweenPolls = timeBetweenPolls;
         this.S3ListenProperties = S3ListenProperties;
 
         this.kafkaProducer = kafkaProducer;
         this.storageForS3List = storageForS3List;
+
         this.bucketName = S3ListenProperties.getProperty("bucketName");
+
+        logger.info("The bucket name has been set to: " + bucketName);
         runBool = true;
-        determine_if_iam_role_or_secret_key();
-    }
-
-    private void determine_if_iam_role_or_secret_key(){
-
     }
 
     /**
@@ -65,6 +68,7 @@ public class S3Listen {
             // Adds a shutdown hook for this thread.
             final Thread mainThread = Thread.currentThread();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                logger.info("The shutdown hook has been triggered");
                 try {
                     // Stops anymore runs from occurring, gives a five second cooldown.
                     runBool = false;
@@ -73,13 +77,15 @@ public class S3Listen {
                     // Closes all connections
                     storageForS3List.close();
                     kafkaProducer.close();
+                    logger.info("All shutdown actions have been completed successfully.");
                 }
                 catch (InterruptedException exc){
-                    //TODO: Logger
+                    logger.info("An exception has occured during shutdown: \n" + exc.getMessage());
                 }
             }));
 
             while (runBool) {
+                logger.debug("A poll run is beginning");
                 // Calls list
                 Set<String> currentS3Files = callListOnBucket(bucketName);
 
@@ -96,15 +102,18 @@ public class S3Listen {
                             (metadata, exceptionNullIfNone) -> {
                                 if (exceptionNullIfNone == null)
                                     writeKeyToStorage(fileKeyInBucketNotRecordedPreviously);
+                                else logger.warn("A key has failed to be sent to kafka, " +
+                                        "File location: " + fileKeyInBucketNotRecordedPreviously);
                             });
 
                 });
 
+                logger.debug("Going to sleep for: " + timeBetweenPolls.toString());
                 // Sleep for the intended period of time
                 sleep(this.timeBetweenPolls.toMillis());
             }
         } catch (InterruptedException exc){
-            //TODO: Logger
+            logger.warn("An exception has occured during execution: " + exc.getMessage());
         }
     }
 
@@ -115,6 +124,7 @@ public class S3Listen {
      * @return the S3Key files that have been read before
      */
     private Set<String> queryTheDifferenceInCache(Set<String> currentS3Files) {
+        logger.debug("queryTheDifferenceInCache");
         currentS3Files.removeIf(storageForS3List::keyAlreadyRead);
         return currentS3Files;
     }
@@ -127,7 +137,14 @@ public class S3Listen {
         storageForS3List.putKey(fileKeyInBucketNotRecordedPreviously);
     }
 
+    /**
+     * Calls list on the bucket and returns the set of keys
+     *
+     * @param bucketToList A string naming the bucket required
+     * @return The set of keys as a {@link Set}
+     */
     private Set<String> callListOnBucket(String bucketToList) {
+        logger.debug("callListOnBucket");
         ListObjectsV2Result listResults = s3.listObjectsV2(bucketToList);
         List<S3ObjectSummary> listResultSummaries = listResults.getObjectSummaries();
         Set<String> setOfKeys = new HashSet<>(listResultSummaries.size());
