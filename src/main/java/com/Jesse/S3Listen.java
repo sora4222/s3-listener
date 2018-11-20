@@ -51,7 +51,7 @@ public class S3Listen {
         this.bucketName = S3ListenProperties.getProperty("bucketName");
 
         determine_if_iam_role_or_secret_key();
-        cache = new HashSet<>(20000);
+        cache = new HashSet<>(200000);
     }
 
     private void determine_if_iam_role_or_secret_key(){
@@ -65,18 +65,13 @@ public class S3Listen {
         // Reads and/or sets up the Storable
         readCurrentCache();
 
+        //noinspection InfiniteLoopStatement
         while(true){
-            // Sets up the connection
-
-
             // Calls list
             Set<String> currentS3Files = callListOnBucket(bucketName);
 
             // Compares the called list with the read list
             Set<String> differenceBetween = queryTheDifferenceInCache(currentS3Files);
-
-//            Set<String> differenceBetween = new HashSet<>(currentS3Files);
-//            boolean differencesOccured = differenceBetween.removeAll(storageSet);
 
             // Takes any of the difference, cycles through it
             // Sends any of the differences to the kafka topic setup.
@@ -85,8 +80,9 @@ public class S3Listen {
                         new ProducerRecord<>(bucketName + "ListenTopic",
                                 fileKeyInBucketNotRecordedPreviously),
                         // CallBack, only runs when the send has been performed
-                        (metadata,exceptionNullIfNone)->{if(exceptionNullIfNone == null) writeKeyToCache(fileKeyInBucketNotRecordedPreviously);}
-                        );
+                        (metadata,exceptionNullIfNone)->{
+                            if(exceptionNullIfNone == null) writeKeyToStorage(fileKeyInBucketNotRecordedPreviously);
+                        });
 
             });
         }
@@ -95,15 +91,20 @@ public class S3Listen {
     /**
      * Uses the cache to query the difference between the S3Bucket now and before
      * Will query the cache backing if it doesn't contain the file in the cache
-     * @param currentS3Files
-     * @return
+     * @param currentS3Files the S3 objects that is in the bucket
+     * @return the S3Key files that have been read before
      */
     private Set<String> queryTheDifferenceInCache(Set<String> currentS3Files) {
-        return null;
+        currentS3Files.removeIf(storageForS3List::keyAlreadyRead);
+        return currentS3Files;
     }
 
-    private void writeKeyToCache(String fileKeyInBucketNotRecordedPreviously) {
-
+    /**
+     *
+     * @param fileKeyInBucketNotRecordedPreviously
+     */
+    private void writeKeyToStorage(String fileKeyInBucketNotRecordedPreviously) {
+        storageForS3List.putKey(fileKeyInBucketNotRecordedPreviously);
     }
 
     /**
