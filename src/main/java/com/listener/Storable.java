@@ -1,7 +1,6 @@
-package com.Jesse;
+package com.listener;
 
 import com.sun.xml.internal.ws.Closeable;
-import java.io.Flushable;
 
 public interface Storable extends Closeable, AutoCloseable {
     /**

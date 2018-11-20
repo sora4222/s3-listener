@@ -1,13 +1,12 @@
-package com.Jesse.storable;
+package com.listener.storable;
 
 
-import com.Jesse.Storable;
+import com.listener.Storable;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.sql.*;
-
 import java.util.Properties;
 
 public class SQLLiteStorable implements Storable {

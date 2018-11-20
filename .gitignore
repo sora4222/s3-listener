@@ -1,0 +1,5 @@
+aws.properties
+*.class
+*.jar
+
+!gradle-wrapper.jar

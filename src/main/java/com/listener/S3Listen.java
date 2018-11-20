@@ -1,15 +1,17 @@
-package com.Jesse;
+package com.listener;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.model.ListObjectsV2Result;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Properties;
+import java.util.Set;
 
 import static java.lang.Thread.sleep;
 
@@ -22,7 +24,6 @@ import static java.lang.Thread.sleep;
 public class S3Listen {
     private final AmazonS3 s3 = AmazonS3ClientBuilder.defaultClient();
     private final Properties S3ListenProperties;
-    private final Bucket bucket;
     private final Duration timeBetweenPolls;
     private final KafkaProducer<String, String> kafkaProducer;
     private final Storable storageForS3List;
@@ -30,17 +31,17 @@ public class S3Listen {
     static private boolean runBool;
     /**
      *
-     * @param bucket Bucket to poll
-     * @param timeBetweenPolls
-     * @param storageForS3List
-     * @param S3ListenProperties
+     * @param timeBetweenPolls A duration between pings for the s3bucket
+     * @param S3ListenProperties A properties that will eventually determine the objects behaviour
+     *                           currently, it only obtains the "bucketName" from this.
+     * @param storageForS3List An object that implements the {@link Storable} interface, this will
+     *                         be used to store the file locations processed.
+     * @param kafkaProducer A {@link KafkaProducer} that will be used to store the files
      */
-    public S3Listen(Bucket bucket,
-                    Duration timeBetweenPolls,
-                    Storable storageForS3List,
+    public S3Listen(Duration timeBetweenPolls,
                     Properties S3ListenProperties,
+                    Storable storageForS3List,
                     KafkaProducer<String, String> kafkaProducer){
-        this.bucket = bucket;
         this.timeBetweenPolls = timeBetweenPolls;
         this.S3ListenProperties = S3ListenProperties;
 
