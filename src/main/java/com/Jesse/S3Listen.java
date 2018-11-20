@@ -11,6 +11,8 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import java.time.Duration;
 import java.util.*;
 
+import static java.lang.Thread.sleep;
+
 /**
  * S3Listen will listen to a provided S3 bucket and return information
  * on the events occuring on it using a polling method. This is
@@ -18,13 +20,14 @@ import java.util.*;
  * allowed to use the standard SNS or Lambda methods.
  */
 public class S3Listen {
-    final AmazonS3 s3 = AmazonS3ClientBuilder.defaultClient();
+    private final AmazonS3 s3 = AmazonS3ClientBuilder.defaultClient();
     private final Properties S3ListenProperties;
     private final Bucket bucket;
     private final Duration timeBetweenPolls;
     private final KafkaProducer<String, String> kafkaProducer;
     private final Storable storageForS3List;
     private final String bucketName;
+    static private boolean runBool;
     /**
      *
      * @param bucket Bucket to poll
@@ -44,7 +47,7 @@ public class S3Listen {
         this.kafkaProducer = kafkaProducer;
         this.storageForS3List = storageForS3List;
         this.bucketName = S3ListenProperties.getProperty("bucketName");
-
+        runBool = true;
         determine_if_iam_role_or_secret_key();
     }
 
@@ -56,27 +59,51 @@ public class S3Listen {
      * Begins listening to the S3 bucket - is blocking
      */
     public void listen(){
+        try {
 
-        //noinspection InfiniteLoopStatement
-        while(true){
-            // Calls list
-            Set<String> currentS3Files = callListOnBucket(bucketName);
+            // Adds a shutdown hook for this thread.
+            final Thread mainThread = Thread.currentThread();
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try {
+                    // Stops anymore runs from occurring, gives a five second cooldown.
+                    runBool = false;
+                    mainThread.join(5000);
 
-            // Compares the called list with the read list
-            Set<String> differenceBetween = queryTheDifferenceInCache(currentS3Files);
+                    // Closes all connections
+                    storageForS3List.close();
+                    kafkaProducer.close();
+                }
+                catch (InterruptedException exc){
+                    //TODO: Logger
+                }
+            }));
 
-            // Takes any of the difference, cycles through it
-            // Sends any of the differences to the kafka topic setup.
-            differenceBetween.forEach((fileKeyInBucketNotRecordedPreviously) -> {
-                kafkaProducer.send(
-                        new ProducerRecord<>(bucketName + "ListenTopic",
-                                fileKeyInBucketNotRecordedPreviously),
-                        // CallBack, only runs when the send has been performed
-                        (metadata,exceptionNullIfNone)->{
-                            if(exceptionNullIfNone == null) writeKeyToStorage(fileKeyInBucketNotRecordedPreviously);
-                        });
+            while (runBool) {
+                // Calls list
+                Set<String> currentS3Files = callListOnBucket(bucketName);
 
-            });
+                // Compares the called list with the read list
+                Set<String> differenceBetween = queryTheDifferenceInCache(currentS3Files);
+
+                // Takes any of the difference, cycles through it
+                // Sends any of the differences to the kafka topic setup.
+                differenceBetween.forEach((fileKeyInBucketNotRecordedPreviously) -> {
+                    kafkaProducer.send(
+                            new ProducerRecord<>(bucketName + "ListenTopic",
+                                    fileKeyInBucketNotRecordedPreviously),
+                            // CallBack, only runs when the send has been performed
+                            (metadata, exceptionNullIfNone) -> {
+                                if (exceptionNullIfNone == null)
+                                    writeKeyToStorage(fileKeyInBucketNotRecordedPreviously);
+                            });
+
+                });
+
+                // Sleep for the intended period of time
+                sleep(this.timeBetweenPolls.toMillis());
+            }
+        } catch (InterruptedException exc){
+            //TODO: Logger
         }
     }
 
