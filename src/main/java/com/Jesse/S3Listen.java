@@ -23,11 +23,8 @@ public class S3Listen {
     private final Bucket bucket;
     private final Duration timeBetweenPolls;
     private final KafkaProducer<String, String> kafkaProducer;
-    private String AwsAccessKey;
-    private String AwsSecretKey;
     private final Storable storageForS3List;
     private final String bucketName;
-    private final HashSet<String> cache;
     /**
      *
      * @param bucket Bucket to poll
@@ -45,13 +42,10 @@ public class S3Listen {
         this.S3ListenProperties = S3ListenProperties;
 
         this.kafkaProducer = kafkaProducer;
-        AwsAccessKey = "";
-        AwsSecretKey = "";
         this.storageForS3List = storageForS3List;
         this.bucketName = S3ListenProperties.getProperty("bucketName");
 
         determine_if_iam_role_or_secret_key();
-        cache = new HashSet<>(200000);
     }
 
     private void determine_if_iam_role_or_secret_key(){
@@ -62,8 +56,6 @@ public class S3Listen {
      * Begins listening to the S3 bucket - is blocking
      */
     public void listen(){
-        // Reads and/or sets up the Storable
-        readCurrentCache();
 
         //noinspection InfiniteLoopStatement
         while(true){
@@ -100,25 +92,11 @@ public class S3Listen {
     }
 
     /**
-     *
-     * @param fileKeyInBucketNotRecordedPreviously
+     * Writes the key to the storable
+     * @param fileKeyInBucketNotRecordedPreviously A string of the file location to be stored in the storable
      */
     private void writeKeyToStorage(String fileKeyInBucketNotRecordedPreviously) {
         storageForS3List.putKey(fileKeyInBucketNotRecordedPreviously);
-    }
-
-    /**
-     * Takes the storage and loads in as many of the object keys into the cache
-     */
-    private void readCurrentCache() {
-        try{
-            for(String keyObtained : storageForS3List.keysIterable()){
-                cache.add(keyObtained);
-            }
-        }
-        catch (OutOfMemoryError exc){
-            return;
-        }
     }
 
     private Set<String> callListOnBucket(String bucketToList) {
