@@ -96,19 +96,16 @@ public class S3Listen {
 
                 // Takes any of the difference, cycles through it
                 // Sends any of the differences to the kafka topic setup.
-                differenceBetween.forEach((fileKeyInBucketNotRecordedPreviously) -> {
-                    kafkaProducer.send(
-                            new ProducerRecord<>(bucketName + "ListenTopic",
-                                    fileKeyInBucketNotRecordedPreviously),
-                            // CallBack, only runs when the send has been performed
-                            (metadata, exceptionNullIfNone) -> {
-                                if (exceptionNullIfNone == null)
-                                    writeKeyToStorage(fileKeyInBucketNotRecordedPreviously);
-                                else logger.warn("A key has failed to be sent to kafka, " +
-                                        "File location: " + fileKeyInBucketNotRecordedPreviously);
-                            });
-
-                });
+                differenceBetween.forEach((fileKeyInBucketNotRecordedPreviously) -> kafkaProducer.send(
+                        new ProducerRecord<>(bucketName + "ListenTopic",
+                                fileKeyInBucketNotRecordedPreviously),
+                        // CallBack, only runs when the send has been performed
+                        (metadata, exceptionNullIfNone) -> {
+                            if (exceptionNullIfNone == null)
+                                writeKeyToStorage(fileKeyInBucketNotRecordedPreviously);
+                            else logger.warn("A key has failed to be sent to kafka, " +
+                                    "File location: " + fileKeyInBucketNotRecordedPreviously);
+                        }));
 
                 logger.debug("Going to sleep for: " + timeBetweenPolls.toString());
                 // Sleep for the intended period of time
