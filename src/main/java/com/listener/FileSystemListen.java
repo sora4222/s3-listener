@@ -2,56 +2,59 @@ package com.listener;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.ListObjectsV2Result;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.listener.filesystem.FileSystem;
 import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.time.Duration;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
 import static java.lang.Thread.sleep;
 
 /**
- * S3Listen will listen to a provided S3 bucket and return information
+ * FileSystemListen will listen to a provided S3 bucket and return information
  * on the events occuring on it using a polling method. This is
  * intended to be a temporary replacement for those that are not
  * allowed to use the standard SNS or Lambda methods.
  */
-public class S3Listen {
+public class FileSystemListen {
     private final AmazonS3 s3 = AmazonS3ClientBuilder.defaultClient();
     private final Properties S3ListenProperties;
     private final Duration timeBetweenPolls;
-    private final KafkaProducer<String, String> kafkaProducer;
-    private final Storable storageForS3List;
+    private final Producer<String, String> kafkaProducer;
+    private final Storable storageForLocationsPreviouslyLocated;
     private final String bucketName;
+    private final FileSystem fileSystem;
+
     private static boolean runBool;
-    private static final Logger logger = LoggerFactory.getLogger(S3Listen.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(FileSystemListen.class.getName());
     /**
      *
+     * @param fileSystem An implementation of filesystem that will be polled for file locations
      * @param timeBetweenPolls A duration between pings for the s3bucket
      * @param S3ListenProperties A properties that will eventually determine the objects behaviour
      *                           currently, it only obtains the "bucketName" from this.
-     * @param storageForS3List An object that implements the {@link Storable} interface, this will
+     * @param storageForLocationsPreviouslyLocated An object that implements the {@link Storable} interface, this will
      *                         be used to store the file locations processed.
      * @param kafkaProducer A {@link KafkaProducer} that will be used to store the files
      */
-    public S3Listen(Duration timeBetweenPolls,
-                    Properties S3ListenProperties,
-                    Storable storageForS3List,
-                    KafkaProducer<String, String> kafkaProducer){
+    public FileSystemListen(FileSystem fileSystem,
+                            Duration timeBetweenPolls,
+                            Properties S3ListenProperties,
+                            Storable storageForLocationsPreviouslyLocated,
+                            Producer<String, String> kafkaProducer) {
 
-
+        this.fileSystem = fileSystem;
         this.timeBetweenPolls = timeBetweenPolls;
         this.S3ListenProperties = S3ListenProperties;
 
         this.kafkaProducer = kafkaProducer;
-        this.storageForS3List = storageForS3List;
+        this.storageForLocationsPreviouslyLocated = storageForLocationsPreviouslyLocated;
 
         this.bucketName = S3ListenProperties.getProperty("bucketName");
 
@@ -75,11 +78,10 @@ public class S3Listen {
                     mainThread.join(5000);
 
                     // Closes all connections
-                    storageForS3List.close();
+                    storageForLocationsPreviouslyLocated.close();
                     kafkaProducer.close();
                     logger.info("All shutdown actions have been completed successfully.");
-                }
-                catch (InterruptedException exc){
+                } catch (InterruptedException | IOException exc) {
                     logger.warn("An exception has occured during shutdown: \n" + exc.getMessage());
                 }
             }));
@@ -87,7 +89,7 @@ public class S3Listen {
             while (runBool) {
                 logger.trace("A poll run is beginning");
                 // Calls list
-                Set<String> currentS3Files = callListOnBucket(bucketName);
+                Set<String> currentS3Files = fileSystem.list();
                 logger.info("The number of files listed is: {}", currentS3Files.size());
 
                 // Compares the called list with the read list
@@ -124,7 +126,7 @@ public class S3Listen {
      */
     private Set<String> queryTheDifferenceFromStorable(Set<String> currentS3Files) {
         logger.trace("queryTheDifferenceFromStorable");
-        currentS3Files.removeIf(storageForS3List::keyAlreadyRead);
+        currentS3Files.removeIf(storageForLocationsPreviouslyLocated::keyAlreadyRead);
         return currentS3Files;
     }
 
@@ -133,25 +135,6 @@ public class S3Listen {
      * @param fileKeyInBucketNotRecordedPreviously A string of the file location to be stored in the storable
      */
     private void writeKeyToStorage(String fileKeyInBucketNotRecordedPreviously) {
-        storageForS3List.putKey(fileKeyInBucketNotRecordedPreviously);
-    }
-
-    /**
-     * Calls list on the bucket and returns the set of keys
-     *
-     * @param bucketToList A string naming the bucket required
-     * @return The set of keys as a {@link Set}
-     */
-    private Set<String> callListOnBucket(String bucketToList) {
-        logger.debug("callListOnBucket");
-        ListObjectsV2Result listResults = s3.listObjectsV2(bucketToList);
-        List<S3ObjectSummary> listResultSummaries = listResults.getObjectSummaries();
-        Set<String> setOfKeys = new HashSet<>(listResultSummaries.size());
-
-        // Adds the key of each object to the set
-        for(S3ObjectSummary summaries: listResultSummaries){
-            setOfKeys.add(summaries.getKey());
-        }
-        return setOfKeys;
+        storageForLocationsPreviouslyLocated.putKey(fileKeyInBucketNotRecordedPreviously);
     }
 }

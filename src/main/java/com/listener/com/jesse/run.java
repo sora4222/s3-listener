@@ -1,6 +1,7 @@
 package com.listener.com.jesse;
 
-import com.listener.S3Listen;
+import com.listener.FileSystemListen;
+import com.listener.filesystem.S3FileSystem;
 import com.listener.storable.SQLiteStorable;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -49,7 +50,11 @@ public class run {
         Properties generalConfig = loadProperties("config.properties");
         Properties kafkaProducerProperties = loadProperties("kafkaProducer.properties");
 
-        S3Listen fileListener = new S3Listen(Duration.ofSeconds(20),
+        assert generalConfig != null;
+
+        FileSystemListen fileListener = new FileSystemListen(
+                new S3FileSystem(generalConfig.getProperty("bucketName")),
+                Duration.ofSeconds(20),
                 generalConfig,
                 new SQLiteStorable(generalConfig),
                 new KafkaProducer<>(kafkaProducerProperties, new StringSerializer(), new StringSerializer()));
