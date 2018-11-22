@@ -1,7 +1,10 @@
+package steps;
+
 import com.listener.FileSystemListen;
-import com.listener.Storable;
 import com.listener.filesystem.TestFileSystem;
 import com.listener.storable.SQLiteStorable;
+import com.listener.storable.Storable;
+import cucumber.api.PendingException;
 import cucumber.api.java8.En;
 import org.apache.kafka.clients.producer.MockProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -11,7 +14,8 @@ import org.junit.Assert;
 import java.time.Duration;
 import java.util.*;
 
-public class StepDefs implements En {
+
+public class ListenToS3StepDefs implements En {
     private FileSystemListen listen = null;
     private Storable storable = null;
     private TestFileSystem fileSystem = null;
@@ -28,7 +32,7 @@ public class StepDefs implements En {
         return fileLocationAndName.toString();
     }
 
-    public StepDefs() {
+    public ListenToS3StepDefs() {
 
         // Givens
         Given("^a FileSystem with a list ability$", () ->
@@ -46,7 +50,7 @@ public class StepDefs implements En {
             kafkaProducer = new MockProducer<>();
         });
 
-        And("^a FileSystemListen$", (Integer arg0) -> {
+        And("^a FileSystemListen$", () -> {
             Properties properties = new Properties();
             properties.setProperty("bucketName", "testFileSystem");
             listen = new FileSystemListen(fileSystem,
@@ -62,7 +66,7 @@ public class StepDefs implements En {
             return;
         });
 
-        When("^the FileSystem has just had (\\d) objects put in it$", (Integer arg0) -> {
+        When("^the FileSystem has just had (\\d+) objects put in it$", (Integer arg0) -> {
             filesListed = new HashSet<>(arg0);
             while (filesListed.size() < arg0) {
                 String randomLocation = generateRandomFileLocations();
@@ -73,7 +77,7 @@ public class StepDefs implements En {
 
         // Thens
 
-        Then("^the KafkaProducer should have (\\d) messages sent to it\\.$", (Integer arg0) -> {
+        Then("^the KafkaProducer should have (\\d+) messages sent to it\\.$", (Integer arg0) -> {
             MockProducer mockProducer = (MockProducer) kafkaProducer;
             List<ProducerRecord<String, String>> recordsSent = mockProducer.history();
 
@@ -85,6 +89,10 @@ public class StepDefs implements En {
 
             Assert.assertEquals("The correct number of messages was not sent",
                     arg0.intValue(), recordsSent.size());
+        });
+        And("^the FileSystemListen listens to the bucket$", () -> {
+            // Write code here that turns the phrase above into concrete actions
+            throw new PendingException();
         });
 
     }

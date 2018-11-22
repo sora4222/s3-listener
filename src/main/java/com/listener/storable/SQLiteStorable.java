@@ -1,7 +1,6 @@
 package com.listener.storable;
 
 
-import com.listener.Storable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

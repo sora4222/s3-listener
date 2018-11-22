@@ -6,6 +6,7 @@ Feature: Listen to a file system and store changes in KafkaProducer
     And a KafkaProducer
     And a FileSystemListen
     When the FileSystem is empty
+    And the FileSystemListen listens to the bucket
     Then the KafkaProducer should have 0 messages sent to it.
 
   Scenario Outline: S3 has just gotten objects put in it
@@ -14,11 +15,12 @@ Feature: Listen to a file system and store changes in KafkaProducer
     And a Storable
     And a KafkaProducer
     When the FileSystem has just had <number_of_objects> objects put in it
+    And the FileSystemListen listens to the bucket
     Then the KafkaProducer should have <number_of_objects> messages sent to it.
+
     Examples:
       | number_of_objects |
       | 1                 |
       | 2                 |
       | 20                |
-      | 10000             |
-      | 99999999999       |
+      | 1000              |
