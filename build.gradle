@@ -19,9 +19,7 @@ dependencies {
     compile group: 'commons-configuration', name: 'commons-configuration', version: '1.10'
 
     testCompile 'io.cucumber:cucumber-java8:4.2.0'
-    testCompile group: 'info.cukes', name: 'cucumber-junit', version: '1.2.5'
-    testCompile group: 'info.cukes', name: 'cucumber-java', version: '1.2.5'
-
+    testCompile 'io.cucumber:cucumber-junit:4.2.0'
 
     // Logging
     compile group: 'org.slf4j', name: 'slf4j-log4j12', version: '1.7.25'

@@ -1,8 +1,9 @@
-package com.listener;
+package com.listener.storable;
 
-import com.sun.xml.internal.ws.Closeable;
 
-public interface Storable extends Closeable, AutoCloseable {
+import java.io.Closeable;
+
+public interface Storable extends Closeable {
     /**
      * Checks whether the key is in the storable.
      * @param key the key as a string
