@@ -59,6 +59,6 @@ public class run {
                 new SQLiteStorable(generalConfig),
                 new KafkaProducer<>(kafkaProducerProperties, new StringSerializer(), new StringSerializer()));
 
-        fileListener.listen();
+        fileListener.listen_forever();
     }
 }

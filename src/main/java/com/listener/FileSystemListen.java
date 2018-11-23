@@ -1,7 +1,5 @@
 package com.listener;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.listener.filesystem.FileSystem;
 import com.listener.storable.Storable;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -18,7 +16,7 @@ import java.util.Set;
 import static java.lang.Thread.sleep;
 
 /**
- * FileSystemListen will listen to a provided S3 bucket and return information
+ * FileSystemListen will listen_forever to a provided S3 bucket and return information
  * on the events occuring on it using a polling method. This is
  * intended to be a temporary replacement for those that are not
  * allowed to use the standard SNS or Lambda methods.
@@ -26,7 +24,6 @@ import static java.lang.Thread.sleep;
 public class FileSystemListen {
     private static final Logger logger = LoggerFactory.getLogger(FileSystemListen.class.getName());
     private static boolean runBool;
-    private final AmazonS3 s3 = AmazonS3ClientBuilder.defaultClient();
     private final Properties S3ListenProperties;
     private final Duration timeBetweenPolls;
     private final Producer<String, String> kafkaProducer;
@@ -65,7 +62,7 @@ public class FileSystemListen {
     /**
      * Listens to the file system in an infinite loop.
      */
-    public void listen() {
+    public void listen_forever() {
         runBool = true;
         while (runBool) {
             listen_once();
@@ -90,12 +87,14 @@ public class FileSystemListen {
                 try {
                     // Stops anymore runs from occurring, gives a five second cooldown.
                     runBool = false;
-                    mainThread.join(5000);
 
                     // Closes all connections
                     storageForLocationsPreviouslyLocated.close();
                     kafkaProducer.close();
                     logger.info("All shutdown actions have been completed successfully.");
+
+                    mainThread.join(5000);
+
                 } catch (InterruptedException | IOException exc) {
                     logger.warn("An exception has occured during shutdown: \n" + exc.getMessage());
                 }
@@ -120,7 +119,8 @@ public class FileSystemListen {
                     if (exceptionNullIfNone == null)
                         writeKeyToStorage(fileKeyInBucketNotRecordedPreviously);
                     else logger.warn("A key has failed to be sent to kafka, " +
-                            "File location: " + fileKeyInBucketNotRecordedPreviously);
+                                    "File location: {}\nException", fileKeyInBucketNotRecordedPreviously,
+                            exceptionNullIfNone.getMessage());
                 }));
 
         logger.debug("Going to sleep for: " + timeBetweenPolls.toString());

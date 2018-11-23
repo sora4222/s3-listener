@@ -99,6 +99,18 @@ public class SQLiteStorable implements Storable {
         }
     }
 
+    public int count() {
+        try {
+            PreparedStatement countStatement = dbConnection.prepareStatement("SELECT COUNT(*) FROM LISTDATA");
+            ResultSet resultSet = countStatement.executeQuery();
+            resultSet.next();
+            return resultSet.getInt(1);
+        } catch (SQLException exc) {
+            logger.warn("The count couldn't be acquired");
+            return -1;
+        }
+    }
+
     /**
      * Attempts to put the key in the storable
      *

@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -14,8 +15,17 @@ public class TestFileSystem implements FileSystem {
 
     private Set<String> listSet;
 
+    /**
+     * A test file system.
+     * The hash set used is the {@link LinkedHashSet} as this
+     * set retains the order in which the objects are put in
+     * this gives the tester an idea of when these will be
+     * effected.
+     */
     public TestFileSystem() {
-        listSet = new HashSet<>();
+        // Linked hashset is used to retain the order in which the
+        // use
+        listSet = new LinkedHashSet<>();
     }
 
     public TestFileSystem(List<String> list) {
@@ -36,7 +46,7 @@ public class TestFileSystem implements FileSystem {
     }
 
     /**
-     * Returns a set of the objects located in this file
+     * Returns the {@link HashSet} of the file locations in this file
      * system
      *
      * @return A set of all the locations in string format
