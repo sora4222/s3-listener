@@ -39,4 +39,10 @@ public class S3FileSystem implements FileSystem {
         }
         return setOfKeys;
     }
+
+    @Override
+    public String getIdentifier() {
+        return "S3 FileSystem: " + bucketToList;
+    }
+
 }

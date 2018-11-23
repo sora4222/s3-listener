@@ -8,5 +8,7 @@ public interface FileSystem {
      *
      * @return A set of all the locations in string format
      */
-    public Set<String> list();
+    Set<String> list();
+
+    String getIdentifier();
 }

@@ -47,4 +47,9 @@ public class TestFileSystem implements FileSystem {
         return listSet;
     }
 
+    @Override
+    public String getIdentifier() {
+        return "Test file system";
+    }
+
 }
