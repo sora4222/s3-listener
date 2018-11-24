@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.sql.*;
+import java.util.LinkedList;
 import java.util.Properties;
 
 import static java.lang.System.exit;
@@ -99,6 +100,34 @@ public class SQLiteStorable implements Storable {
         }
     }
 
+    /**
+     * Will obtain a list of all the filelocations in this database
+     * this is intended for TESTING only.
+     *
+     * @return A {@link LinkedList} containing all of the FILELOCATION
+     */
+    public LinkedList<String> getKeysWrittenAsList() {
+        try {
+            PreparedStatement preparedStatement = dbConnection.prepareStatement("SELECT FILELOCATION FROM LISTDATA " +
+                    "ORDER BY date(Timestamp) ASC");
+            ResultSet resultSet = preparedStatement.executeQuery();
+            LinkedList<String> filesToReturn = new LinkedList<>();
+            while (resultSet.next()) {
+                filesToReturn.add(resultSet.getString(1));
+            }
+            return filesToReturn;
+        } catch (SQLException e) {
+            logger.warn(e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Gives back the count of the SQLite database.
+     * This is for Testing only
+     *
+     * @return The count as an int of the rows in the database
+     */
     public int count() {
         try {
             PreparedStatement countStatement = dbConnection.prepareStatement("SELECT COUNT(*) FROM LISTDATA");

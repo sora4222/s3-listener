@@ -31,13 +31,13 @@ public class ListenToS3StepDefs implements En {
             fileSystem = new TestFileSystem();
         });
 
-        And("^a Storable$", () -> {
+        And("^a SQLite Storable$", () -> {
             Properties properties = new Properties();
             properties.setProperty("InMemory", "true");
             storable = new SQLiteStorable(properties);
         });
 
-        And("^a KafkaProducer$", () -> {
+        And("^a Mock KafkaProducer$", () -> {
             kafkaProducer = new MockProducer<>();
         });
 
@@ -85,6 +85,7 @@ public class ListenToS3StepDefs implements En {
                     }
 
                     // Go through and accept or reject the needed packets
+                    // These are processed in the order they were sent
                     int number_retained = 0;
                     while (number_retained < number_to_retain) {
                         if (!mockProducer.completeNext()) break;
@@ -92,7 +93,6 @@ public class ListenToS3StepDefs implements En {
                     }
                     while (true) {
                         if (!mockProducer.errorNext(new KafkaException("A fake error"))) break;
-                        System.out.println("1");
                     }
                 });
         // Thens
@@ -114,11 +114,19 @@ public class ListenToS3StepDefs implements En {
         But("^the Storable should have had (\\d+) messages written to it$", (Integer messagesWritten) -> {
             // Test the number of files written to the fileSystem
             SQLiteStorable storableAsSQL = (SQLiteStorable) storable;
-
+            MockProducer<String, String> mockProducer = (MockProducer<String, String>) kafkaProducer;
             Assert.assertEquals(
                     "The correct number of messages was not sent",
                     messagesWritten.intValue(),
                     storableAsSQL.count());
+
+            int i = 0;
+            for (String messageWrittenToSQLite : storableAsSQL.getKeysWrittenAsList()) {
+                Assert.assertEquals("The messages stored in the SQLite are not the same as those sent " +
+                                "to the Kafka Producer.",
+                        messageWrittenToSQLite, mockProducer.history().get(i).value());
+                i++;
+            }
         });
 
     }
