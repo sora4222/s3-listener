@@ -17,12 +17,13 @@ public class S3FileSystemStepDefs implements En {
         When("^the S3FileSystem does a list$", () -> {
             resultSet = s3FileSystem.list();
         });
-        Then("^the returned result is over ([\\d]+)$", (String minimum) -> {
-            System.out.println(minimum);
-            Long value = Long.parseLong(minimum);
-            Assert.assertTrue("The expected set length is greater than " + minimum + ", only "
-                            + resultSet.size() + " were returned.",
-                    resultSet.size() >= value);
+        Then("^the returned result is equal to ([\\d]+)$", (Integer minimum) -> {
+            Assert.assertEquals("The expected set length is greater than " + minimum + ", only "
+                    + resultSet.size() + " were returned.", resultSet.size(), minimum.intValue());
+        });
+        Given("^a S3FileSystem connected to \"([^\"]*)\" which only gets (\\d+) file key at a time$",
+                (String bucketAddress, Integer numberToRetrieveAtATime) -> {
+                    s3FileSystem = new S3FileSystem(bucketAddress, numberToRetrieveAtATime);
         });
     }
 }

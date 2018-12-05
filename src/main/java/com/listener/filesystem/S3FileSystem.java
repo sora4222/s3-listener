@@ -40,7 +40,6 @@ public class S3FileSystem implements FileSystem {
 
     /**
      * Lists the objects contained in the S3 bucket
-     * TODO: Need to make this list all, currently limited to first 1000.
      * @return A set of all the locations in string format
      */
     @Override
